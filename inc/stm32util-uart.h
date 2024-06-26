@@ -1,7 +1,6 @@
 #ifndef __STM32UTIL_UART_H__
 #define __STM32UTIL_UART_H__
 
-#include "main.h"
 #include "stm32util-base.h"
 
 #if __cplusplus

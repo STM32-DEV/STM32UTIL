@@ -1,8 +1,10 @@
 #if !defined(__STM32UTIL_BASE_H__)
 #define __STM32UTIL_BASE_H__
 
+#include "stm32util-conf.h"
 #include <stdbool.h>
 #include <unistd.h>
+#include "main.h"
 
 #define DIMOF(a) ( sizeof(a) / sizeof( (a)[0] ) )
 
