@@ -1,5 +1,5 @@
-#ifndef __STM32UTIL_UART_H__
-#define __STM32UTIL_UART_H__
+#ifndef __STM32UTIL_DEBUG_UART_H__
+#define __STM32UTIL_DEBUG_UART_H__
 
 #include "stm32util-base.h"
 
@@ -42,4 +42,4 @@ void STM32UTIL_DEBUG_UART_TC_isr();
 }
 #endif
 
-#endif // __STM32UTIL_UART_H__
+#endif // __STM32UTIL_DEBUG_UART_H__

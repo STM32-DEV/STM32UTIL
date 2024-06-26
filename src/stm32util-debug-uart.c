@@ -1,7 +1,6 @@
 #include <string.h>
-#include "main.h"
 #include "usart.h"
-//#include "stm32util-debug.h"
+#include "stm32util-debug.h"
 #include "stm32util-debug-uart.h"
 
 #if STM32UTIL_DEBUG_UART_USE_HAL
@@ -57,8 +56,42 @@ void stm32util_uart_setup_tx_dma()
 // Transmit buffer for UART
 /* _AT_DMATX_SRAM1 */ __attribute__((aligned(32))) static uint8_t tx_buffer[STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE];
 
-//
-/*_AT_ITCMRAM*/ static volatile bool stm32util_tx_end = true;
+#if STM32UTIL_USE_OS
+static osSemaphoreId_t debug_uart_sema;
+static const osSemaphoreAttr_t debug_uart_sema_attr = {
+    .name = "debug_uart_sema",
+};
+#else
+/*_AT_ITCMRAM*/ static volatile bool uart_dma_tx_flag = true;
+#endif
+
+static void uart_dma_start_tx()
+{
+#if !STM32UTIL_USE_OS
+	uart_dma_tx_flag = false;
+#endif
+}
+
+static void uart_dma_end_tx()
+{
+#if STM32UTIL_USE_OS
+	osSemaphoreRelease(debug_uart_sema);
+#else
+	uart_dma_tx_flag = true;
+#endif
+}
+
+static void uart_dma_wait_tx()
+{
+#if STM32UTIL_USE_OS
+	// Wait for the transmission to complete, RM0433r8 p2060 Figure 590
+	while (osSemaphoreAcquire(debug_uart_sema, osWaitForever) != osOK) {
+	}
+#else
+	while (!uart_dma_tx_flag) {
+	}
+#endif
+}
 
 /**
  * @brief Callback function for UART transmission complete.
@@ -68,11 +101,7 @@ void stm32util_uart_setup_tx_dma()
 #if STM32UTIL_DEBUG_UART_USE_HAL
 /*_AT_ITCMRAM*/ void debug_uart_tx_completed(UART_HandleTypeDef *hdma)
 {
-#if STM32UTIL_USE_OS
-	osSemaphoreRelease(debug_uart_sema);
-#else
-	stm32util_tx_end = true;
-#endif
+	uart_dma_end_tx();
 }
 
 #elif STM32UTIL_DEBUG_UART_USE_LL
@@ -83,26 +112,10 @@ void stm32util_uart_setup_tx_dma()
 
 /*_AT_ITCMRAM*/ void STM32UTIL_DEBUG_UART_TC_isr()
 {
-#if STM32UTIL_USE_OS
-	osSemaphoreRelease(debug_uart_sema);
-#else
-	stm32util_tx_end = true;
-#endif
+	uart_dma_end_tx();
 }
 
 #endif
-
-static void uart_wait_tx_completed()
-{
-#if STM32UTIL_USE_OS
-	// Wait for the transmission to complete, RM0433r8 p2060 Figure 590
-	while (osSemaphoreAcquire(debug_uart_sema, osWaitForever) != osOK) {
-	}
-#else
-	while (!stm32util_tx_end) {
-	}
-#endif
-}
 
 bool stm32util_debug_init()
 {
@@ -149,7 +162,7 @@ int _write(int file, char* ptr, int len)
 	// Transmit data using DMA
 	//
 	while (remaining_len) {
-		uart_wait_tx_completed();
+		uart_dma_wait_tx();
 
 		// Copy data to the transmit buffer
 		memcpy(tx_buffer, ptr, chunk);
@@ -159,9 +172,7 @@ int _write(int file, char* ptr, int len)
 
 		stm32util_uart_transmit_dma(tx_buffer, chunk);
 
-#if !STM32UTIL_USE_OS
-		stm32util_tx_end = false;
-#endif
+		uart_dma_start_tx();
 
 		// Move the pointer forward and adjust the remaining length
 		ptr += chunk;
