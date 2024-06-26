@@ -2,6 +2,9 @@
 #include "usart.h"
 #include "stm32util-debug.h"
 #include "stm32util-debug-uart.h"
+#if STM32UTIL_USE_OS
+#include <cmsis_os2.h>
+#endif
 
 #if STM32UTIL_DEBUG_UART_USE_HAL
 extern UART_HandleTypeDef STM32UTIL_DEBUG_HUART;
@@ -51,7 +54,7 @@ void stm32util_uart_setup_tx_dma()
 #endif
 
 // Indicates if the debug UART is initialized
-/*_AT_ITCMRAM*/ static volatile bool stm32util_debug_inited = false;
+/*_AT_ITCMRAM*/ static volatile bool debug_uart_inited_ = false;
 
 // Transmit buffer for UART
 /* _AT_DMATX_SRAM1 */ __attribute__((aligned(32))) static uint8_t tx_buffer[STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE];
@@ -59,7 +62,7 @@ void stm32util_uart_setup_tx_dma()
 #if STM32UTIL_USE_OS
 static osSemaphoreId_t debug_uart_sema;
 static const osSemaphoreAttr_t debug_uart_sema_attr = {
-    .name = "debug_uart_sema",
+    .name = "debug_uart_tx_sema",
 };
 #else
 /*_AT_ITCMRAM*/ static volatile bool uart_dma_tx_flag = true;
@@ -119,16 +122,27 @@ static void uart_dma_wait_tx()
 
 bool stm32util_debug_init()
 {
-	if (!stm32util_debug_inited) { // first check
+	if (!debug_uart_inited_) { // first check
+		osKernelLock();
+
+		if (!debug_uart_inited_) { // double check
+			debug_uart_sema = osSemaphoreNew(1, 1, &debug_uart_sema_attr);
+			if (!debug_uart_sema) {
+				//CRITICAL("osSemaphoreNew debug_uart");
+			}
+
 #if STM32UTIL_DEBUG_UART_USE_HAL
-		if (HAL_OK != HAL_UART_RegisterCallback(DEBUG_UART, HAL_UART_TX_COMPLETE_CB_ID, debug_uart_tx_completed)) {
-			//CRITICAL("HAL_UART_RegisterCallback debug_uart");
-		}
+			if (HAL_OK != HAL_UART_RegisterCallback(DEBUG_UART, HAL_UART_TX_COMPLETE_CB_ID, debug_uart_tx_completed)) {
+				//CRITICAL("HAL_UART_RegisterCallback debug_uart");
+			}
 #elif STM32UTIL_DEBUG_UART_USE_LL
-		stm32util_uart_setup_tx_dma();
+			stm32util_uart_setup_tx_dma();
 #endif
 
-		stm32util_debug_inited = true;
+			debug_uart_inited_ = true;
+		}
+
+		osKernelUnlock();
 	}
 
 	return true;
