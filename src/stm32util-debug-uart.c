@@ -6,7 +6,8 @@
 #include "stm32util-debug-uart.h"
 #if STM32UTIL_USE_OS
 #include <cmsis_os2.h>
-#include "stm32_lock.h"
+#include <FreeRTOS.h>
+//#include "stm32_lock.h"
 #endif
 
 #if STM32UTIL_DEBUG_UART_USE_HAL
@@ -126,20 +127,24 @@ static void uart_dma_wait_tx()
 bool stm32util_debug_init()
 {
 	if (!debug_uart_inited_) { // first check
+#if STM32UTIL_USE_OS
 		osKernelLock();
+#endif
 
 #if 0
 		LockingData_t test;
-		if (DIMOF(test.basepri) < 3) {
-			//CRITICAL("#define STM32_LOCK_MAX_NESTED_LEVELS 4 more in stm32_lock.h");
+		if (DIMOF(test.basepri) < 4) {
+			CRITICAL("#define STM32_LOCK_MAX_NESTED_LEVELS 4 more in stm32_lock.h");
 		}
 #endif
 
 		if (!debug_uart_inited_) { // double check
+#if STM32UTIL_USE_OS
 			debug_uart_sema = osSemaphoreNew(1, 1, &debug_uart_sema_attr);
 			if (!debug_uart_sema) {
-				//CRITICAL("osSemaphoreNew debug_uart");
+				CRITICAL("osSemaphoreNew debug_uart");
 			}
+#endif
 
 #if STM32UTIL_DEBUG_UART_USE_HAL
 			if (HAL_OK != HAL_UART_RegisterCallback(DEBUG_UART, HAL_UART_TX_COMPLETE_CB_ID, debug_uart_tx_completed)) {
@@ -152,7 +157,9 @@ bool stm32util_debug_init()
 			debug_uart_inited_ = true;
 		}
 
+#if STM32UTIL_USE_OS
 		osKernelUnlock();
+#endif
 	}
 
 	return true;
@@ -161,7 +168,7 @@ bool stm32util_debug_init()
 /*
 	Override the weak function to redirect printf and other outputs to UART.
  */
-static int debug_uart_write(int file, char* ptr, int len)
+int stm32util_debug_uart_write(int file, const char* ptr, int len)
 {
 	stm32util_debug_init();
 
@@ -217,16 +224,22 @@ static int debug_uart_write(int file, char* ptr, int len)
 int printf(const char* fmt, ...)
 {
 	//@@@ use stack or heap?, size?
+#if STM32UTIL_USE_OS
 	char* buffer = pvPortMalloc(STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE);
 	if (buffer) {
+#else
+	static char buffer[STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE]; {
+#endif
 		va_list vargs;
 		va_start(vargs, fmt);
 		_safe_(n, vsnprintf, buffer, STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE, fmt, vargs);
 		va_end(vargs);
 
-		debug_uart_write(1, buffer, n);
+		stm32util_debug_uart_write(1, buffer, n);
 
+#if STM32UTIL_USE_OS
 		vPortFree(buffer);
+#endif
 
 		return n;
 	}

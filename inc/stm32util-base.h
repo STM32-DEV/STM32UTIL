@@ -61,4 +61,14 @@
 #define LL_DMA_EnableRunnel(a,b)	LL_DMA_EnableChannel(a,b)
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+uint32_t stm32util_get_tick();
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif // __STM32UTIL_BASE_H__

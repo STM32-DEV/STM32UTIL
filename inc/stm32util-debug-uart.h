@@ -38,6 +38,9 @@ extern "C" {
 void STM32UTIL_DEBUG_UART_DMA_TC_isr();
 void STM32UTIL_DEBUG_UART_TC_isr();
 
+int stm32util_debug_uart_write(int file, const char* ptr, int len);
+void stm32util_uart_transmit(uint8_t* ptr, int len);
+
 #if __cplusplus
 }
 #endif
