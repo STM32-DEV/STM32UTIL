@@ -215,9 +215,7 @@ int stm32util_debug_uart_write(int file, const char* ptr, int len)
 	return len;
 }
 
-// Safely format a string into a buffer, ensuring null-termination.
-#define _safe_(n, f, b, s, ...) int n = f(b,s-1,__VA_ARGS__); if (s-1 < n) { n=s-1; (b)[n]=0; }
-
+#if defined(STM32UTIL_DEBUG_UART_USE_DMA)
 /*
 	redefine printf
  */
@@ -232,7 +230,7 @@ int printf(const char* fmt, ...)
 #endif
 		va_list vargs;
 		va_start(vargs, fmt);
-		_safe_(n, vsnprintf, buffer, STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE, fmt, vargs);
+		SAFE_FMT(n, vsnprintf, buffer, STM32UTIL_DEBUG_UART_TX_BUFFER_SIZE, fmt, vargs);
 		va_end(vargs);
 
 		stm32util_debug_uart_write(1, buffer, n);
@@ -246,3 +244,11 @@ int printf(const char* fmt, ...)
 
 	return -1;
 }
+
+#else
+int _write(int file, const char* ptr, int len)
+{
+	stm32util_uart_transmit_dma(ptr, len);
+}
+
+#endif

@@ -115,33 +115,6 @@ static char level_to_ch(int level)
 	return lvlch;
 }
 
-// Safely format a string into a buffer, ensuring null-termination.
-#define _safe_(n, f, b, s, ...)		\
-	int n = f(b,s-1,__VA_ARGS__);	\
-	if (n < 0) {			\
-		n = 0;			\
-		(b)[0] = 0;		\
-	} else if (s - 1 < n) {		\
-		n = s - 1;		\
-		(b)[n] = 0;		\
-	}
-
-/*int safe_vsnprintf(char* buffer, size_t size, va_list args)
-{
-	int n = vsnprintf(buffer, size, args);
-
-	if (n < 0) {
-		n = 0;
-		buffer[0] = 0;
-	}
-	else if (size - 1 < n) {
-		n = s - 1;
-		buffer[n] = 0;
-	}
-
-	return n;
-}*/
-
 /**
  * @brief Create a timestamp string with debug information.
  *
@@ -165,7 +138,7 @@ static int make_timestamp_info(char* buffer, size_t size, int level, int line, c
 	//pc = (uint32_t)__builtin_return_address(0);
 	//pc = __current_pc();
 	//const char* fn = backtrace_function_name(pc);
-	_safe_(n1, snprintf, buffer, size, "%02d:%02d:%02d.%03d %c %s %s(%d): ", hours, minutes, seconds, milis, lvlch, func, file, line);
+	SAFE_FMT(n1, snprintf, buffer, size, "%02d:%02d:%02d.%03d %c %s %s(%d): ", hours, minutes, seconds, milis, lvlch, func, file, line);
 
 	return n1;
 }
@@ -198,7 +171,7 @@ int stm32util_debug_printf(uint32_t group, int level, int line, const char* func
 
 		va_list vargs;
 		va_start(vargs, fmt);
-		_safe_(n2, vsnprintf, buffer + n1, DBGPRINTF_BUF_SIZE - n1, fmt, vargs);
+		SAFE_FMT(n2, vsnprintf, buffer + n1, DBGPRINTF_BUF_SIZE - n1, fmt, vargs);
 		va_end(vargs);
 
 		stm32util_debug_uart_write(1, buffer, n1 + n2);
@@ -246,7 +219,7 @@ void stm32util_assert(const char* cond, int line, const char* func, const char* 
 
 	va_list vargs;
 	va_start(vargs, fmt);
-	_safe_(n2, vsnprintf, buffer + n1, DBGPRINTF_BUF_SIZE - n1, fmt, vargs);
+	SAFE_FMT(n2, vsnprintf, buffer + n1, DBGPRINTF_BUF_SIZE - n1, fmt, vargs);
 	va_end(vargs);
 
 	while (true) {

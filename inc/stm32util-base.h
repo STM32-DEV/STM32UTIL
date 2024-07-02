@@ -66,6 +66,7 @@ extern "C" {
 #endif
 
 uint32_t stm32util_get_tick();
+void stm32util_delay(uint32_t ms);
 
 #if defined(__cplusplus)
 }
