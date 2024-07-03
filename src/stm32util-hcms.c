@@ -33,7 +33,6 @@ void stm32util_hcms_transmit_dma(uint8_t* ptr, int len)
 #elif STM32UTIL_HCMS_SPI_USE_LL
 void stm32util_hcms_transmit(uint8_t* ptr, int len)
 {
-	LL_SPI_ClearFlag_EOT(HCMS_SPI);
 	LL_SPI_SetTransferSize(HCMS_SPI, len);
 	LL_SPI_Enable(HCMS_SPI);
 	LL_SPI_StartMasterTransfer(HCMS_SPI);
@@ -54,6 +53,10 @@ void stm32util_hcms_transmit(uint8_t* ptr, int len)
 
 void stm32util_hcms_transmit_dma(uint8_t* ptr, int len)
 {
+	LL_SPI_SetTransferSize(HCMS_SPI, len);
+	LL_SPI_Enable(HCMS_SPI);
+	LL_SPI_StartMasterTransfer(HCMS_SPI);
+
 	LL_DMA_DisableRunnel(STM32UTIL_HCMS_SPI_DMA, STM32UTIL_HCMS_SPI_RUNNEL);
 	LL_DMA_SetMemoryAddress(STM32UTIL_HCMS_SPI_DMA, STM32UTIL_HCMS_SPI_RUNNEL, (uint32_t)ptr);
 	LL_DMA_SetDataLength(STM32UTIL_HCMS_SPI_DMA, STM32UTIL_HCMS_SPI_RUNNEL, len);
@@ -63,6 +66,8 @@ void stm32util_hcms_transmit_dma(uint8_t* ptr, int len)
 void stm32util_hcms_setup_tx_dma()
 {
 	LL_SPI_EnableDMAReq_TX(HCMS_SPI);
+	LL_SPI_EnableIT_EOT(HCMS_SPI);
+
 	LL_DMA_EnableIT_TC(STM32UTIL_HCMS_SPI_DMA, STM32UTIL_HCMS_SPI_RUNNEL);
 	LL_DMA_SetPeriphAddress(STM32UTIL_HCMS_SPI_DMA, STM32UTIL_HCMS_SPI_RUNNEL, LL_SPI_DMA_GetTxRegAddr(HCMS_SPI));
 }
