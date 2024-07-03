@@ -33,11 +33,23 @@ void stm32util_hcms_transmit_dma(uint8_t* ptr, int len)
 #elif STM32UTIL_HCMS_SPI_USE_LL
 void stm32util_hcms_transmit(uint8_t* ptr, int len)
 {
+	LL_SPI_ClearFlag_EOT(HCMS_SPI);
+	LL_SPI_SetTransferSize(HCMS_SPI, len);
+	LL_SPI_Enable(HCMS_SPI);
+	LL_SPI_StartMasterTransfer(HCMS_SPI);
+
 	while (len--) {
 		while (!LL_SPI_IsActiveFlag_TXP(HCMS_SPI)) {
 		}
 		LL_SPI_TransmitData8(HCMS_SPI, *ptr++);
 	}
+
+	while (!LL_SPI_IsActiveFlag_EOT(HCMS_SPI)) {
+	}
+	LL_SPI_ClearFlag_EOT(HCMS_SPI);
+	LL_SPI_ClearFlag_TXTF(HCMS_SPI);
+
+	LL_SPI_Disable(HCMS_SPI);
 }
 
 void stm32util_hcms_transmit_dma(uint8_t* ptr, int len)
@@ -187,7 +199,7 @@ void stm32util_hcms_puts(const char* str)
 		buffer += WIDTH;
 	}
 
-#if defined(STM32UTIL_HCMS_SPI_USE_DMA)
+#if STM32UTIL_HCMS_SPI_USE_DMA
 	stm32util_hcms_dma_wait_tx();
 	SCB_CleanDCache_by_Addr((uint32_t*)hcms_buffer_, HCMS_BUFFER_SIZE);
 	stm32util_hcms_transmit_dma(hcms_buffer_, HCMS_BUFFER_SIZE);

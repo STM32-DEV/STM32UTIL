@@ -215,7 +215,7 @@ int stm32util_debug_uart_write(int file, const char* ptr, int len)
 	return len;
 }
 
-#if defined(STM32UTIL_DEBUG_UART_USE_DMA)
+#if STM32UTIL_DEBUG_UART_USE_DMA
 /*
 	redefine printf
  */
